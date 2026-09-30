@@ -69,7 +69,7 @@ class OpenAIVisionLLM(BaseVisionLLM):
         Args:
             settings: Application settings containing vision_llm configuration.
             api_key: Optional API key override.
-            base_url: Optional base URL override.
+            base_url: Optional base URL override (falls back to settings.vision_llm.base_url).
             max_image_size: Maximum image dimension in pixels for auto-compression.
             **kwargs: Additional configuration overrides.
         
@@ -123,6 +123,9 @@ class OpenAIVisionLLM(BaseVisionLLM):
         
         if base_url:
             self.base_url = base_url
+        elif vision_settings and getattr(vision_settings, "base_url", None):
+            # OpenAI-compatible custom endpoint (e.g. DeepSeek)
+            self.base_url = vision_settings.base_url
         elif azure_endpoint:
             # Azure-compatible mode
             self.base_url = (

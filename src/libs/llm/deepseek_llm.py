@@ -38,7 +38,22 @@ class DeepSeekLLM(BaseLLM):
     """
     
     DEFAULT_BASE_URL = "https://api.deepseek.com"
-    
+
+    # Per-model ceiling for ``max_tokens``.  This bounds *generated* tokens per
+    # call and is unrelated to the context window (1M for both models below).
+    # Values mirror the ``max_output_tokens`` field of
+    # ``GET https://api.deepseek.com/models`` — refresh with:
+    #   curl -s https://api.deepseek.com/models -H "Authorization: Bearer $KEY"
+    MODEL_MAX_OUTPUT_TOKENS: Dict[str, int] = {
+        "deepseek-flash": 393216,
+        "deepseek-v4-pro": 393216,
+    }
+
+    # Ceiling applied to model ids absent from the table above.  Exceeding the
+    # largest known cap is a config typo in every realistic case, and DeepSeek
+    # would answer with HTTP 400 rather than clamping it.
+    DEFAULT_MAX_OUTPUT_TOKENS = 393216
+
     def __init__(
         self,
         settings: Any,
@@ -50,27 +65,51 @@ class DeepSeekLLM(BaseLLM):
         
         Args:
             settings: Application settings containing LLM configuration.
-            api_key: Optional API key override (falls back to env var DEEPSEEK_API_KEY).
-            base_url: Optional base URL override.
+            api_key: Optional API key override (falls back to settings.llm.api_key or env var).
+            base_url: Optional base URL override (falls back to settings.llm.base_url).
             **kwargs: Additional configuration overrides.
         
         Raises:
             ValueError: If API key is not provided and not found in environment.
+            ValueError: If ``settings.llm.max_tokens`` is outside the range
+                accepted by the configured model.
         """
         self.model = settings.llm.model
         self.default_temperature = settings.llm.temperature
         self.default_max_tokens = settings.llm.max_tokens
+
+        # Fail fast on an out-of-range max_tokens.  DeepSeek rejects the entire
+        # request with HTTP 400, and the ingestion transforms swallow per-chunk
+        # LLM errors and fall back to rule-based output — so a bad value here
+        # degrades every chunk silently instead of surfacing as a failure.
+        max_output_limit = self.MODEL_MAX_OUTPUT_TOKENS.get(
+            self.model, self.DEFAULT_MAX_OUTPUT_TOKENS
+        )
+        if not 1 <= self.default_max_tokens <= max_output_limit:
+            raise ValueError(
+                f"llm.max_tokens={self.default_max_tokens} is out of range for "
+                f"model '{self.model}', which accepts [1, {max_output_limit}]. "
+                f"Note this caps generated tokens per call, not the context window."
+            )
         
-        # API key: explicit > env var
-        self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
+        # API key: explicit > settings > env var
+        self.api_key = (
+            api_key
+            or getattr(settings.llm, "api_key", None)
+            or os.environ.get("DEEPSEEK_API_KEY")
+        )
         if not self.api_key:
             raise ValueError(
                 "DeepSeek API key not provided. Set DEEPSEEK_API_KEY environment variable "
                 "or pass api_key parameter."
             )
         
-        # Base URL: explicit > default
-        self.base_url = base_url or self.DEFAULT_BASE_URL
+        # Base URL: explicit > settings > default
+        self.base_url = (
+            base_url
+            or getattr(settings.llm, "base_url", None)
+            or self.DEFAULT_BASE_URL
+        )
         
         # Store any additional kwargs for future use
         self._extra_config = kwargs

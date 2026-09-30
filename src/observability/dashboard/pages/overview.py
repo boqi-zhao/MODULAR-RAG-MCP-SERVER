@@ -12,6 +12,7 @@ from typing import Any, Dict
 
 import streamlit as st
 
+from src.observability.dashboard.i18n import t
 from src.observability.dashboard.services.config_service import ConfigService
 
 
@@ -45,29 +46,32 @@ def _safe_collection_stats() -> Dict[str, Any]:
 
 def render() -> None:
     """Render the Overview page."""
-    st.header("📊 System Overview")
+    st.header(t("overview.header"))
 
     # ── Component configuration cards ──────────────────────────────
-    st.subheader("🔧 Component Configuration")
+    st.subheader(t("overview.component_config"))
 
     try:
         config_service = ConfigService()
         cards = config_service.get_component_cards()
     except Exception as exc:
-        st.error(f"Failed to load configuration: {exc}")
+        st.error(t("overview.config_load_failed", error=exc))
         return
 
     cols = st.columns(min(len(cards), 3))
     for idx, card in enumerate(cards):
         with cols[idx % len(cols)]:
             st.markdown(f"**{card.name}**")
-            st.caption(f"Provider: `{card.provider}`  \nModel: `{card.model}`")
-            with st.expander("Details"):
+            st.caption(
+                f"{t('common.provider')}: `{card.provider}`  \n"
+                f"{t('common.model')}: `{card.model}`"
+            )
+            with st.expander(t("common.details")):
                 for k, v in card.extra.items():
                     st.text(f"{k}: {v}")
 
     # ── Collection statistics ──────────────────────────────────────
-    st.subheader("📁 Collection Statistics")
+    st.subheader(t("overview.collection_stats"))
 
     stats = _safe_collection_stats()
     if stats:
@@ -77,23 +81,20 @@ def render() -> None:
                 count = info.get("chunk_count", "?")
                 st.metric(label=name, value=count)
                 if count == 0 or count == "?":
-                    st.caption("⚠️ Empty")
+                    st.caption(t("overview.empty_marker"))
     else:
-        st.warning(
-            "**No collections found or ChromaDB unavailable.** "
-            "Go to the Ingestion Manager page to upload and ingest documents."
-        )
+        st.warning(t("overview.no_collections"))
 
     # ── Trace file statistics ──────────────────────────────────────
-    st.subheader("📈 Trace Statistics")
+    st.subheader(t("overview.trace_stats"))
 
     from src.core.settings import resolve_path
     traces_path = resolve_path("logs/traces.jsonl")
     if traces_path.exists():
         line_count = sum(1 for _ in traces_path.open(encoding="utf-8"))
         if line_count > 0:
-            st.metric("Total traces", line_count)
+            st.metric(t("overview.total_traces"), line_count)
         else:
-            st.info("No traces recorded yet. Run a query or ingestion first.")
+            st.info(t("overview.no_traces"))
     else:
-        st.info("No traces recorded yet. Run a query or ingestion first.")
+        st.info(t("overview.no_traces"))
