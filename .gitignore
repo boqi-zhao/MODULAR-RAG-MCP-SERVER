@@ -59,6 +59,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local settings (contains API keys; template: config/settings.yaml.example)
+config/settings.yaml
+
 # QA Test credentials and config backups
 config/test_credentials.yaml
 config/settings.yaml.qa_backup

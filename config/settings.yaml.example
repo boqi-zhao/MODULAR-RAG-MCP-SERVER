@@ -6,44 +6,34 @@
 # LLM Configuration
 # =============================================================================
 llm:
-  provider: "openai"  # Options: openai, azure, ollama, deepseek
-  model: "gpt-4o"
-  deployment_name: "gpt-4o"
-  azure_endpoint: "https://YOUR_ENDPOINT.openai.azure.com/"
-  api_version: "2024-02-15-preview"
+  provider: "deepseek"  # Options: openai, azure, ollama, deepseek
+  model: "deepseek-flash"
+  base_url: "https://api.deepseek.com"
   api_key: "YOUR_API_KEY_HERE"
   temperature: 0.0
+  # Caps GENERATED tokens per call (not the context window, which is 1M).
+  # deepseek-flash accepts [1, 393216]; 4096 is ample for refine/enrich/caption.
   max_tokens: 4096
 
 # =============================================================================
 # Embedding Configuration
 # =============================================================================
 embedding:
-  provider: "openai"  # Options: openai, azure, ollama
-  model: "text-embedding-ada-002"
-  dimensions: 1536  # text-embedding-ada-002 固定维度 (不传递给API, 仅用于验证)
-  # Azure-compatible settings (azure_endpoint triggers Azure compat mode):
-  azure_endpoint: "https://YOUR_ENDPOINT.openai.azure.com/"
-  deployment_name: "text-embedding-ada-002"
-  api_version: "2024-02-15-preview"
+  provider: "openai"  # OpenAI-compatible protocol (routed to SiliconFlow below)
+  model: "Qwen/Qwen3-Embedding-0.6B"
+  dimensions: 1024  # Qwen3-Embedding-0.6B 输出维度 (不传递给API, 仅用于验证)
+  base_url: "https://api.siliconflow.cn/v1"
   api_key: "YOUR_API_KEY_HERE"
-  # OpenAI-specific settings (if provider is openai):
-  # api_key: "YOUR_API_KEY_HERE"
 
 # =============================================================================
 # Vision LLM Configuration (for Image Captioning)
 # =============================================================================
 vision_llm:
-  enabled: true  # Set to true to enable vision capabilities
-  provider: "openai"  # Options: openai, azure, ollama
-  model: "gpt-4o"  # Options: gpt-4o, gpt-4-vision-preview (OpenAI), llava (Ollama)
-  # Azure-compatible settings (azure_endpoint triggers Azure compat mode):
-  azure_endpoint: "https://YOUR_ENDPOINT.openai.azure.com/"
-  deployment_name: "gpt-4o"
-  api_version: "2024-02-15-preview"
-  api_key: "YOUR_API_KEY_HERE"
-  # Ollama-specific settings (if provider is ollama):
-  # base_url: "http://localhost:11434"
+  enabled: true  # Multimodal via OpenAI-compatible protocol (pointed at DeepSeek)
+  provider: "openai"  # OpenAI-compatible protocol; use azure/ollama if needed
+  model: "deepseek-flash"
+  base_url: "https://api.deepseek.com"
+  # api_key omitted -> falls back to llm.api_key above
   max_image_size: 2048  # Max dimension (width/height) for image compression
 
 # =============================================================================
