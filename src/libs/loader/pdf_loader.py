@@ -216,9 +216,6 @@ class PdfLoader(BaseLoader):
             # 使用 PyMuPDF 打开 PDF
             doc = fitz.open(pdf_path)
             
-            # 跟踪文本偏移量，用于插入占位符
-            text_offset = 0
-            
             for page_num in range(len(doc)):
                 page = doc[page_num]
                 image_list = page.get_images(full=True)
